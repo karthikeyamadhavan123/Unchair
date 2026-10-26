@@ -14,20 +14,21 @@ typedef struct
 
 typedef enum TokenType
 {
-  LBRACE,         // 0
-  RBRACE,         // 1
-  COMMA,          // 2
-  EQUALS,         // 3
-  DOUBLEQUOTE,    // 4
-  NUMBER_LITERAL, // 5
-  STRING_LITERAL, // 6
-  KEYWORD         // 7
+  LBRACE,      // 0
+  RBRACE,      // 1
+  COMMA,       // 2
+  EQUALS,      // 3
+  DOUBLEQUOTE, // 4
+  INTEGER,     // 5
+  STRING,      // 6
+  KEYWORD      // 7
 } TType;
 
 /*
  example of Token
  LBRACE,"["
 */
+
 typedef struct
 {
   TType t_type;
@@ -170,14 +171,16 @@ int isKeyword(char *literal)
   return 0;
 }
 
-int isNotValidCharForNumberLiteral(char ch)
+int isValidCharLiteral(char ch)
 {
-  if (ch == '.')
+  // accept spaces _ and a-z and A-Z only
+
+  if ((ch >= 65 && ch <= 90) || (ch >= 97 && ch <= 122) || (ch == 32) || (ch == 95))
   {
-    printf("decimal types not allowed\n");
-    return 0;
+    return 1;
   }
-  return 1;
+
+  return 0;
 }
 
 int main()
@@ -208,6 +211,7 @@ int main()
 
   int countDoubleQuote = 0;
   int isValidToken = 1;
+
   do
   {
     // Taking input single character at a time
@@ -247,23 +251,20 @@ int main()
       // position->curr++;
       countDoubleQuote++;
       char nextCh = fgetc(fp); // u go to the next character;
-      if (isNum(nextCh))
+      if (!isValidCharLiteral(nextCh))
       {
-        printf("Number is not allowed inside double quotes as variable name at "
-               "position %d line number %d.\n",
-               position->curr, position->line);
+        printf("Not a valid char literal inside double quotes %c.\n", nextCh);
         return 1;
       }
       int index = 0;
       if (nextCh == '"')
       {
+        // int number = 0;
         // means a empty string in our case we will allow it.
         // position->curr++;
         countDoubleQuote--;
-        literal[index] = '\0';
-        index = 0;
-        t = (Token){STRING_LITERAL, strndup(literal, LITERAL_SIZE)};
-        Push(tokenStream, t);
+        printf("Empty strings are not allowed both in properties and value\n");
+        return 1;
       }
       else
       {
@@ -275,6 +276,12 @@ int main()
           // printf("characters after first inverted comma %c\n", c);
           if (feof(fp))
             break;
+
+          if (c != '"' && !isValidCharLiteral(c))
+          {
+            printf("Not a valid char literal inside double quotes %c.\n", c);
+            return 1;
+          }
           if (c == '"')
           {
             countDoubleQuote--;
@@ -287,17 +294,10 @@ int main()
             }
             else
             {
-              t = (Token){STRING_LITERAL, strndup(literal, LITERAL_SIZE)};
+              t = (Token){STRING, strndup(literal, LITERAL_SIZE)};
               Push(tokenStream, t);
             }
             break;
-          }
-          if(c==','){
-            printf("character reached until comma %c\n",c);
-            if(countDoubleQuote > 0){
-              printf("missing double quote in the current line\n");
-              break;
-            }
           }
           // position->curr++;
           literal[index++] = c;
@@ -312,7 +312,7 @@ int main()
     }
     else if (isNum(ch))
     {
-      // position->curr++;
+      // position->curr++
       int numIndex = 0;
       numLiteral[numIndex++] = ch;
       // will not allow spaces between number.and no decimal number.
@@ -320,42 +320,51 @@ int main()
       {
         char character = fgetc(fp);
         if (feof(fp))
-          break;
-        if (isSpace(character) == 1)
         {
-          continue;
-        }
-        if (isNotValidCharForNumberLiteral(character) == 0)
-        {
-          printf("character is wrong %c\n", character);
-          isValidToken = 0;
+          numLiteral[numIndex] = '\0';
+          t = (Token){INTEGER, strdup(numLiteral)};
+          Push(tokenStream, t);
           break;
         }
-
         if (isNum(character))
         {
           // position->curr++;
           numLiteral[numIndex++] = character;
         }
-        if (character == ',')
+        else
         {
-          // position->curr++;
-          // position->line++;
-          numLiteral[numIndex] = '\0';
-          t = (Token){NUMBER_LITERAL, strdup(numLiteral)};
-          Push(tokenStream, t);
-          t = (Token){COMMA, ","};
-          Push(tokenStream, t);
-          break;
-        }
-        if (character == ']')
-        {
-          numLiteral[numIndex] = '\0';
-          t = (Token){NUMBER_LITERAL, strdup(numLiteral)};
-          Push(tokenStream, t);
-          t = (Token){RBRACE, "]"};
-          Push(tokenStream, t);
-          break;
+          if (character == ',')
+          {
+            // position->curr++;
+            // position->line++;
+            numLiteral[numIndex] = '\0';
+            t = (Token){INTEGER, strdup(numLiteral)};
+            Push(tokenStream, t);
+            ungetc(',', fp);
+            break;
+          }
+          if (character == ']')
+          {
+            numLiteral[numIndex] = '\0';
+            t = (Token){INTEGER, strdup(numLiteral)};
+            Push(tokenStream, t);
+            ungetc(']', fp);
+            break;
+          }
+          // after a number digit space exists so terminate the number literal and continue to the next one
+          if (isSpace(character))
+          {
+
+            numLiteral[numIndex] = '\0';
+            t = (Token){INTEGER, strdup(numLiteral)};
+            Push(tokenStream, t);
+            break;
+          }
+          else
+          {
+            printf("Unidentified character %c\n", character);
+            return 1;
+          }
         }
 
       } while (1);
