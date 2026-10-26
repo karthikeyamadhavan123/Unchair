@@ -1,21 +1,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define TOKEN_SIZE 4096
 #define TOKEN_STREAM_SIZE 4096
 #define LITERAL_SIZE 1000
 #define ERROR_MESSAGE_SIZE 100
 
 typedef struct
 {
-  int curr;
+  int col;
   int line;
 } Position;
 
 typedef enum TokenType
 {
-  LBRACE,      // 0
-  RBRACE,      // 1
+  LBRACKET,      // 0
+  RBRACKET,      // 1
   COMMA,       // 2
   EQUALS,      // 3
   DOUBLEQUOTE, // 4
@@ -26,7 +25,7 @@ typedef enum TokenType
 
 /*
  example of Token
- LBRACE,"["
+ LBRACKET,"["
 */
 
 typedef struct
@@ -38,7 +37,7 @@ typedef struct
 /*
  this is the stream of tokens
  so it will be array of tokens.
- [{LBRACE,"["},{RBRACE,"]"}]
+ [{LBRACKET,"["},{RBRACKET,"]"}]
 */
 
 typedef struct
@@ -59,9 +58,9 @@ const char *keys[] = {"work_minutes", "break_minutes", "min_work_minutes",
                       "max_snoozes", "water_minutes", "empty",
                       "song_seconds", "song_order"};
 
-Position *InitializePostion(int curr, int line)
+Position *InitializePostion(int col, int line)
 {
-  if (curr < 0)
+  if (col < 0)
   {
     printf("Initializer current position is negative please check it.\n");
     return NULL;
@@ -80,8 +79,8 @@ Position *InitializePostion(int curr, int line)
     return NULL;
   }
 
-  p->curr = 0;
-  p->line = 0;
+  p->col = col;
+  p->line = line;
 
   return p;
 }
@@ -116,8 +115,8 @@ void GetTokensFromStream(TokenStream *tokenStream)
   printf("Size is %d\n", tokenStream->size);
   for (int i = 0; i < tokenStream->size; i++)
   {
-    printf("token type is : %d\n", tokenStream->tokens[i].t_type);
-    printf("value is %s\n", tokenStream->tokens[i].value);
+    printf("Token type is : %d\n", tokenStream->tokens[i].t_type);
+    printf("Value is %s\n", tokenStream->tokens[i].value);
   }
 }
 
@@ -125,7 +124,7 @@ void Push(TokenStream *tokenStream, Token T)
 {
   if (tokenStream->size >= TOKEN_STREAM_SIZE)
   {
-    printf("Token stream size is hit,cant push others for memory preventing buffer overflow.\n");
+    printf("Token stream size is hit,cant push others for preventing buffer overflow.\n");
     return;
   }
   tokenStream->tokens[++tokenStream->index] = T;
@@ -156,11 +155,12 @@ int isKeyword(char *literal)
 {
   if (literal == NULL)
   {
-    printf("Literal is NULL\n");
+    printf("Empty string is being passed.\n");
     return -1;
   }
 
   int num_keys = sizeof(keys) / sizeof(keys[0]);
+
   for (int i = 0; i < num_keys; i++)
   {
     if (strcmp(literal, keys[i]) == 0)
@@ -173,7 +173,7 @@ int isKeyword(char *literal)
 
 int isValidCharLiteral(char ch)
 {
-  // accept spaces _ and a-z and A-Z only
+  // accept spaces, _ and a-z and A-Z only
 
   if ((ch >= 65 && ch <= 90) || (ch >= 97 && ch <= 122) || (ch == 32) || (ch == 95))
   {
@@ -210,112 +210,127 @@ int main()
   }
 
   int countDoubleQuote = 0;
-  int isValidToken = 1;
 
   do
   {
     // Taking input single character at a time
     char ch = fgetc(fp);
     Token t;
-    char literal[LITERAL_SIZE];
+    char stringLiteral[LITERAL_SIZE];
     char numLiteral[LITERAL_SIZE];
+
     // Checking for end of file
     if (feof(fp))
       break;
 
     if (isSpace(ch) == 1)
     {
+      position->col++;
       continue;
     }
     if (ch == '[')
     {
-      t = (Token){LBRACE, "["};
+      t = (Token){LBRACKET, "["};
       Push(tokenStream, t);
-      // position->curr++;
+      position->col++;
       // position->line++;
     }
     else if (ch == ']')
     {
-      t = (Token){RBRACE, "]"};
+      t = (Token){RBRACKET, "]"};
       Push(tokenStream, t);
+      position->col++;
     }
     else if (ch == ',')
     {
       t = (Token){COMMA, ","};
       Push(tokenStream, t);
-      // position->curr++;
+      position->col++;
       // position->line++;
     }
     else if (ch == '"')
     {
-      // position->curr++;
+      position->col++;
       countDoubleQuote++;
-      char nextCh = fgetc(fp); // u go to the next character;
+      // u go to the next character;
+      char nextCh = fgetc(fp);
+
       if (!isValidCharLiteral(nextCh))
       {
-        printf("Not a valid char literal inside double quotes %c.\n", nextCh);
+        printf("Error: Invalid character '%c' inside string literal at %d on line number %d.\n", nextCh, position->col, position->line);
         return 1;
       }
-      int index = 0;
+
+      int literal_index = 0;
+
       if (nextCh == '"')
       {
-        // int number = 0;
-        // means a empty string in our case we will allow it.
-        // position->curr++;
+        // means a empty string in our case we will not allow it.
+        position->col++;
         countDoubleQuote--;
-        printf("Empty strings are not allowed both in properties and value\n");
+        printf("Error: Property keys and values cannot be empty at %d on line number %d.\n", position->col, position->line);
         return 1;
       }
+
       else
       {
-        // position->curr++;
-        literal[index++] = nextCh;
+        position->col++;
+        stringLiteral[literal_index++] = nextCh;
         do
         {
           char c = fgetc(fp);
-          // printf("characters after first inverted comma %c\n", c);
+
           if (feof(fp))
             break;
 
           if (c != '"' && !isValidCharLiteral(c))
           {
-            printf("Not a valid char literal inside double quotes %c.\n", c);
+            printf("Error: Invalid character '%c' inside string literal at %d on line number %d.\n", c, position->col, position->line);
             return 1;
           }
+
+          if (literal_index >= LITERAL_SIZE)
+          {
+            printf("Exceeded string literal at position %d on line number %d.\n", position->col, position->line);
+            return 1;
+          }
+
           if (c == '"')
           {
+            position->col++;
             countDoubleQuote--;
-            literal[index] = '\0';
-            index = 0;
-            if (isKeyword(literal) == 1)
+            stringLiteral[literal_index] = '\0';
+            literal_index = 0;
+            if (isKeyword(stringLiteral) == 1)
             {
-              t = (Token){KEYWORD, strndup(literal, LITERAL_SIZE)};
+              t = (Token){KEYWORD, strndup(stringLiteral, LITERAL_SIZE)};
               Push(tokenStream, t);
             }
             else
             {
-              t = (Token){STRING, strndup(literal, LITERAL_SIZE)};
+              t = (Token){STRING, strndup(stringLiteral, LITERAL_SIZE)};
               Push(tokenStream, t);
             }
             break;
           }
-          // position->curr++;
-          literal[index++] = c;
+          // we are not checking for the index maximum limit
+          position->col++;
+          stringLiteral[literal_index++] = c;
         } while (1);
       }
     }
     else if (ch == '=')
     {
-      // position->curr++;
       t = (Token){EQUALS, "="};
       Push(tokenStream, t);
+      position->col++;
     }
     else if (isNum(ch))
     {
-      // position->curr++
+      position->col++;
       int numIndex = 0;
       numLiteral[numIndex++] = ch;
-      // will not allow spaces between number.and no decimal number.
+
       do
       {
         char character = fgetc(fp);
@@ -326,16 +341,23 @@ int main()
           Push(tokenStream, t);
           break;
         }
+        // bounding of index
+        if (numIndex >= LITERAL_SIZE)
+        {
+          printf("Exceeded number literal at position %d on line number %d.\n", position->col, position->line);
+          return 1;
+        }
+
         if (isNum(character))
         {
-          // position->curr++;
+          position->col++;
           numLiteral[numIndex++] = character;
         }
+
         else
         {
           if (character == ',')
           {
-            // position->curr++;
             // position->line++;
             numLiteral[numIndex] = '\0';
             t = (Token){INTEGER, strdup(numLiteral)};
@@ -354,7 +376,7 @@ int main()
           // after a number digit space exists so terminate the number literal and continue to the next one
           if (isSpace(character))
           {
-
+            position->col++;
             numLiteral[numIndex] = '\0';
             t = (Token){INTEGER, strdup(numLiteral)};
             Push(tokenStream, t);
@@ -362,7 +384,7 @@ int main()
           }
           else
           {
-            printf("Unidentified character %c\n", character);
+            printf("Error: Unidentified character '%c' at position %d on line number %d.\n", character,position->col,position->line);
             return 1;
           }
         }
@@ -372,26 +394,21 @@ int main()
     }
     else
     {
-      printf("Unreconizable character %c\n", ch);
-      isValidToken = 0;
-      break;
+      printf("Error: Unidentified character '%c' at position %d on line number %d.\n", ch,position->col,position->line);
+      return 1;
     }
 
   } while (1);
 
   if (countDoubleQuote > 0)
   {
-    printf("Please check your config file you have a missing double quote\n");
+    printf("Error: Unterminated string literal in config file at %d on line number %d.\n", position->col, position->line);
     return 1;
   }
 
-  if (isValidToken == 0)
-  {
-    return 1;
-  }
   GetTokensFromStream(tokenStream);
-  // printf("curr position is %d\n", position->curr);
-  // printf("Line lexed is %d\n", position->line);
+  printf("col position is %d\n", position->col);
+  printf("Line lexed is %d\n", position->line);
   // Cleanup resources
   fclose(fp);
   free(tokenStream->tokens);
