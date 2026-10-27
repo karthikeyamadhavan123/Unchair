@@ -5,7 +5,7 @@
 #define LITERAL_SIZE 1000
 #define ERROR_MESSAGE_SIZE 100
 
-//remaining clear the memory by strndup later as it allocates using malloc.
+// remaining clear the memory by strndup later as it allocates using malloc.
 typedef struct
 {
   int col;
@@ -414,8 +414,18 @@ int main()
   GetTokensFromStream(tokenStream);
   printf("col position is %d\n", position->col);
   printf("Line lexed is %d\n", position->line);
-  // Cleanup resources
   fclose(fp);
+  //call parser here after closing the file.
+
+  // Cleanup resources
+  //fixed the strndup issue here
+  for (int i = 0; i <= tokenStream->index; i++)
+  {
+    if (tokenStream->tokens[i].value != NULL)
+    {
+      free(tokenStream->tokens[i].value);
+    }
+  }
   free(tokenStream->tokens);
   free(tokenStream);
   free(position);
