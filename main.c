@@ -5,6 +5,7 @@
 #define LITERAL_SIZE 1000
 #define ERROR_MESSAGE_SIZE 100
 
+//remaining clear the memory by strndup later as it allocates using malloc.
 typedef struct
 {
   int col;
@@ -13,8 +14,8 @@ typedef struct
 
 typedef enum TokenType
 {
-  LBRACKET,      // 0
-  RBRACKET,      // 1
+  LBRACKET,    // 0
+  RBRACKET,    // 1
   COMMA,       // 2
   EQUALS,      // 3
   DOUBLEQUOTE, // 4
@@ -225,6 +226,10 @@ int main()
 
     if (isSpace(ch) == 1)
     {
+      if (ch == '\n')
+      {
+        position->line++;
+      }
       position->col++;
       continue;
     }
@@ -384,7 +389,7 @@ int main()
           }
           else
           {
-            printf("Error: Unidentified character '%c' at position %d on line number %d.\n", character,position->col,position->line);
+            printf("Error: Unidentified character '%c' at position %d on line number %d.\n", character, position->col, position->line);
             return 1;
           }
         }
@@ -394,7 +399,7 @@ int main()
     }
     else
     {
-      printf("Error: Unidentified character '%c' at position %d on line number %d.\n", ch,position->col,position->line);
+      printf("Error: Unidentified character '%c' at position %d on line number %d.\n", ch, position->col, position->line);
       return 1;
     }
 
