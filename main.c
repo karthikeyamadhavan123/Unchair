@@ -59,19 +59,8 @@ const char *keys[] = {"work_minutes", "break_minutes", "min_work_minutes",
                       "max_snoozes", "water_minutes", "empty",
                       "song_seconds", "song_order"};
 
-Position *InitializePostion(int col, int line)
+Position *InitializePostion()
 {
-  if (col < 0)
-  {
-    printf("Initializer current position is negative please check it.\n");
-    return NULL;
-  }
-  if (line < 0)
-  {
-    printf("Initializer line position is negative please check it.\n");
-    return NULL;
-  }
-
   Position *p = (Position *)malloc(sizeof(Position));
 
   if (p == NULL)
@@ -80,8 +69,8 @@ Position *InitializePostion(int col, int line)
     return NULL;
   }
 
-  p->col = col;
-  p->line = line;
+  p->col = 1;
+  p->line = 1;
 
   return p;
 }
@@ -184,10 +173,26 @@ int isValidCharLiteral(char ch)
   return 0;
 }
 
+void CleanupTokens(TokenStream *tokenStream)
+{
+  for (int i = 0; i <= tokenStream->index; i++)
+  {
+    if (tokenStream->tokens[i].t_type == INTEGER ||
+        tokenStream->tokens[i].t_type == STRING ||
+        tokenStream->tokens[i].t_type == KEYWORD)
+    {
+      if (tokenStream->tokens[i].value != NULL)
+      {
+        free(tokenStream->tokens[i].value);
+      }
+    }
+  }
+}
+
 int main()
 {
 
-  Position *position = InitializePostion(1, 1);
+  Position *position = InitializePostion();
   if (position == NULL)
   {
     return 1;
@@ -205,6 +210,7 @@ int main()
   if (fp == NULL)
   {
     printf("Error: Unable to open file 'unchair.un'.\n");
+    free(tokenStream->tokens);
     free(tokenStream);
     free(position);
     return 1;
@@ -263,6 +269,11 @@ int main()
       if (!isValidCharLiteral(nextCh))
       {
         printf("Error: Invalid character '%c' inside string literal at %d on line number %d.\n", nextCh, position->col, position->line);
+        fclose(fp);
+        CleanupTokens(tokenStream);
+        free(tokenStream->tokens);
+        free(tokenStream);
+        free(position);
         return 1;
       }
 
@@ -274,6 +285,11 @@ int main()
         position->col++;
         countDoubleQuote--;
         printf("Error: Property keys and values cannot be empty at %d on line number %d.\n", position->col, position->line);
+        fclose(fp);
+        CleanupTokens(tokenStream);
+        free(tokenStream->tokens);
+        free(tokenStream);
+        free(position);
         return 1;
       }
 
@@ -291,12 +307,22 @@ int main()
           if (c != '"' && !isValidCharLiteral(c))
           {
             printf("Error: Invalid character '%c' inside string literal at %d on line number %d.\n", c, position->col, position->line);
+            fclose(fp);
+            CleanupTokens(tokenStream);
+            free(tokenStream->tokens);
+            free(tokenStream);
+            free(position);
             return 1;
           }
 
           if (literal_index >= LITERAL_SIZE)
           {
             printf("Exceeded string literal at position %d on line number %d.\n", position->col, position->line);
+            fclose(fp);
+            CleanupTokens(tokenStream);
+            free(tokenStream->tokens);
+            free(tokenStream);
+            free(position);
             return 1;
           }
 
@@ -350,6 +376,11 @@ int main()
         if (numIndex >= LITERAL_SIZE)
         {
           printf("Exceeded number literal at position %d on line number %d.\n", position->col, position->line);
+          fclose(fp);
+          CleanupTokens(tokenStream);
+          free(tokenStream->tokens);
+          free(tokenStream);
+          free(position);
           return 1;
         }
 
@@ -390,6 +421,11 @@ int main()
           else
           {
             printf("Error: Unidentified character '%c' at position %d on line number %d.\n", character, position->col, position->line);
+            fclose(fp);
+            CleanupTokens(tokenStream);
+            free(tokenStream->tokens);
+            free(tokenStream);
+            free(position);
             return 1;
           }
         }
@@ -400,6 +436,11 @@ int main()
     else
     {
       printf("Error: Unidentified character '%c' at position %d on line number %d.\n", ch, position->col, position->line);
+      fclose(fp);
+      CleanupTokens(tokenStream);
+      free(tokenStream->tokens);
+      free(tokenStream);
+      free(position);
       return 1;
     }
 
@@ -408,6 +449,11 @@ int main()
   if (countDoubleQuote > 0)
   {
     printf("Error: Unterminated string literal in config file at %d on line number %d.\n", position->col, position->line);
+    fclose(fp);
+    CleanupTokens(tokenStream);
+    free(tokenStream->tokens);
+    free(tokenStream);
+    free(position);
     return 1;
   }
 
@@ -415,15 +461,18 @@ int main()
   printf("col position is %d\n", position->col);
   printf("Line lexed is %d\n", position->line);
   fclose(fp);
-  //call parser here after closing the file.
+  // call parser here after closing the file.
 
   // Cleanup resources
-  //fixed the strndup issue here
-  for (int i = 0; i <= tokenStream->index; i++)
+  // fixed the strndup issue here
+  for (int i = 0; i < tokenStream->size; i++)
   {
-    if (tokenStream->tokens[i].value != NULL)
+    if (tokenStream->tokens[i].t_type == KEYWORD || tokenStream->tokens[i].t_type == INTEGER || tokenStream->tokens[i].t_type == STRING)
     {
-      free(tokenStream->tokens[i].value);
+      if (tokenStream->tokens[i].value != NULL)
+      {
+        free(tokenStream->tokens[i].value);
+      }
     }
   }
   free(tokenStream->tokens);
