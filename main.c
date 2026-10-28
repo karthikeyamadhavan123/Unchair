@@ -175,7 +175,7 @@ int isValidCharLiteral(char ch)
 
 void CleanupTokens(TokenStream *tokenStream)
 {
-  for (int i = 0; i <= tokenStream->index; i++)
+  for (int i = 0; i < tokenStream->size; i++)
   {
     if (tokenStream->tokens[i].t_type == INTEGER ||
         tokenStream->tokens[i].t_type == STRING ||
@@ -189,9 +189,51 @@ void CleanupTokens(TokenStream *tokenStream)
   }
 }
 
+// parses tokens
+
+int ParseTokens(TokenStream *tokenStream)
+{
+  if (tokenStream->size == 0)
+  {
+    // this case is acceptable that's why we return true
+    printf("No tokens in the stream\n");
+    return 1;
+  }
+  int index = 0;
+  int countBrackets = 0;
+  if (tokenStream->tokens[0].t_type != LBRACKET)
+  {
+    printf("The starting bracket should be '[' but it is %s\n", tokenStream->tokens[0].value);
+    return 0;
+  }
+  countBrackets++;
+  while (index < tokenStream->size)
+  {
+    if (tokenStream->tokens[index].t_type == RBRACKET)
+    {
+      countBrackets--;
+      index++;
+      break;
+    }
+    index++;
+  }
+  if (countBrackets > 0)
+  {
+    printf("You have missed a ']' in your config.\n");
+    return 0;
+  }
+  // means after ] there are still some elements which are left which are not proccessed because RBRACKET was found.
+  if (index < tokenStream->size)
+  {
+    printf("Some characters were found before or after the EOF at index %d stopping parsing.\n", index);
+    return 0;
+  }
+  return 1;
+}
+
 int main()
 {
-
+  const char *configPath = "unchair.un";
   Position *position = InitializePostion();
   if (position == NULL)
   {
@@ -205,7 +247,7 @@ int main()
     return 1;
   }
 
-  FILE *fp = fopen("unchair.un", "r");
+  FILE *fp = fopen(configPath, "r");
 
   if (fp == NULL)
   {
@@ -457,24 +499,15 @@ int main()
     return 1;
   }
 
-  GetTokensFromStream(tokenStream);
   printf("col position is %d\n", position->col);
   printf("Line lexed is %d\n", position->line);
   fclose(fp);
+  GetTokensFromStream(tokenStream);
   // call parser here after closing the file.
-
+  ParseTokens(tokenStream);
   // Cleanup resources
   // fixed the strndup issue here
-  for (int i = 0; i < tokenStream->size; i++)
-  {
-    if (tokenStream->tokens[i].t_type == KEYWORD || tokenStream->tokens[i].t_type == INTEGER || tokenStream->tokens[i].t_type == STRING)
-    {
-      if (tokenStream->tokens[i].value != NULL)
-      {
-        free(tokenStream->tokens[i].value);
-      }
-    }
-  }
+  CleanupTokens(tokenStream);
   free(tokenStream->tokens);
   free(tokenStream);
   free(position);
