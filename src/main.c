@@ -4,6 +4,8 @@
 #define TOKEN_STREAM_SIZE 4096
 #define LITERAL_SIZE 1000
 #define ERROR_MESSAGE_SIZE 100
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 
 // remaining clear the memory by strndup later as it allocates using malloc.
 typedef struct
@@ -430,7 +432,7 @@ int ParseTokens(TokenStream *tokenStream, Config *config)
 
 int main()
 {
-  const char *configPath = "unchair.un";
+  const char *configPath = "../unchair.un";
   Position *position = InitializePostion();
   if (position == NULL)
   {
@@ -711,7 +713,6 @@ int main()
   int res = ParseTokens(tokenStream, config);
   if (res == 0)
   {
-    printf("Parsing Failed.\n");
     CleanupTokens(tokenStream);
     free(tokenStream->tokens);
     free(tokenStream);
@@ -723,24 +724,38 @@ int main()
     free(config);
     return 1;
   }
-  printf("--- Timer Configuration ---\n");
-  printf("work_minutes     = %d\n", config->work_minutes);
-  printf("break_minutes    = %d\n", config->break_minutes);
-  printf("min_work_minutes = %d\n", config->min_work_minutes);
-  printf("max_work_minutes = %d\n", config->max_work_minutes);
-  printf("adjust_step      = %d\n", config->adjust_step);
-  printf("snooze_minutes   = %d\n", config->snooze_minutes);
-  printf("max_snoozes      = %d\n", config->max_snoozes);
-  printf("water_minutes    = %d\n", config->water_minutes);
-  printf("song_seconds     = %d\n", config->song_seconds);
-  printf("song_order       = %s\n", config->song_order);
+  // printf("--- Timer Configuration ---\n");
+  // printf("work_minutes     = %d\n", config->work_minutes);
+  // printf("break_minutes    = %d\n", config->break_minutes);
+  // printf("min_work_minutes = %d\n", config->min_work_minutes);
+  // printf("max_work_minutes = %d\n", config->max_work_minutes);
+  // printf("adjust_step      = %d\n", config->adjust_step);
+  // printf("snooze_minutes   = %d\n", config->snooze_minutes);
+  // printf("max_snoozes      = %d\n", config->max_snoozes);
+  // printf("water_minutes    = %d\n", config->water_minutes);
+  // printf("song_seconds     = %d\n", config->song_seconds);
+  // printf("song_order       = %s\n", config->song_order);
+
+  int width, height, channels;
+  const char *imagePath = "../reactor.png";
+  unsigned char *img = stbi_load(imagePath, &width, &height, &channels, 0);
+  printf("Loaded image with a width of %dpx, a height of %dpx and %d channels\n", width, height, channels);
+  if (img == NULL)
+  {
+    printf("Error: Failed to load image %s\n", imagePath);
+    CleanupTokens(tokenStream);
+    free(tokenStream->tokens);
+    free(tokenStream);
+    free(position);
+    if (config->song_order != NULL)
+    {
+      free(config->song_order);
+    }
+    free(config);
+    return 1;
+  }
   // Cleanup resources
   // fixed the strndup issue here
-  printf("__        __   _                        _                 _____ ___      _   _ _   _  ____  _   _    _    ___ ____  \n");
-  printf("\\ \\      / /__| | ___ ___  _ __ ___   _| |_ ___         |_   _/ _ \\    | | | | \\ | |/ ___|| | | |  / \\  |_ _|  _ \\ \n");
-  printf(" \\ \\ /\\ / / _ \\ |/ __/ _ \\ |/ _` _ \\ / _` * __/           | || | | |   | | | |  \\| | |    | |_| | / _ \\  | || |_) |\n");
-  printf("  \\ V  V /  __/ | (_| (_) | | | | | | (_| *__ \\           | || |_| |   | |_| | |\\  | |___ |  _  |/ ___ \\ | ||  _ < \n");
-  printf("   \\_/\\_/ \\___|_|\\___\\___/|_| |_| |_|\\__,_|___/           |_| \\___/     \\___/|_| \\_|\\____||_| |_/_/   \\_\\___|_| \\_\\\n");
   CleanupTokens(tokenStream);
   free(tokenStream->tokens);
   free(tokenStream);
@@ -750,5 +765,6 @@ int main()
     free(config->song_order);
   }
   free(config);
+  stbi_image_free(img);
   return 0;
 }
