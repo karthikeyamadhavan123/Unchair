@@ -112,7 +112,7 @@ TokenStream *InitializeStream()
 Config *InitializeConfig()
 {
 
-  Config *c = (Config *)malloc(sizeof(Config));
+  Config *c = (Config *)calloc(1, sizeof(Config));
 
   if (c == NULL)
   {
@@ -296,8 +296,8 @@ int ParseAssignment(TokenStream *tokenStream, int *idx, Config *config)
   // Check if we hit the closing bracket
   if (*currVal == RBRACKET)
   {
-    (*idx)++;
-    return 1; // Successfully parsed the block end
+    printf("Error: Configuration block cannot be empty.\n");
+    return 0; // Fails and exits with 1, satisfying Test 14
   }
   if (currVal && *currVal == KEYWORD)
   {
@@ -350,6 +350,17 @@ int ParseAssignment(TokenStream *tokenStream, int *idx, Config *config)
   if (*nextVal == COMMA)
   {
     (*idx)++;
+    TType *expectKeyword = Peek(tokenStream, idx);
+    if (!expectKeyword)
+    {
+      printf("Error: Unexpected end of stream after value assignment.\n");
+      return 0;
+    }
+    if (*expectKeyword != KEYWORD)
+    {
+      printf("Error: Unexpected end of stream after value assignment , .\n");
+      return 0;
+    }
     return ParseAssignment(tokenStream, idx, config);
   }
   else if (*nextVal == RBRACKET)
@@ -725,6 +736,11 @@ int main()
   printf("song_order       = %s\n", config->song_order);
   // Cleanup resources
   // fixed the strndup issue here
+  printf("__        __   _                        _                 _____ ___      _   _ _   _  ____  _   _    _    ___ ____  \n");
+  printf("\\ \\      / /__| | ___ ___  _ __ ___   _| |_ ___         |_   _/ _ \\    | | | | \\ | |/ ___|| | | |  / \\  |_ _|  _ \\ \n");
+  printf(" \\ \\ /\\ / / _ \\ |/ __/ _ \\ |/ _` _ \\ / _` * __/           | || | | |   | | | |  \\| | |    | |_| | / _ \\  | || |_) |\n");
+  printf("  \\ V  V /  __/ | (_| (_) | | | | | | (_| *__ \\           | || |_| |   | |_| | |\\  | |___ |  _  |/ ___ \\ | ||  _ < \n");
+  printf("   \\_/\\_/ \\___|_|\\___\\___/|_| |_| |_|\\__,_|___/           |_| \\___/     \\___/|_| \\_|\\____||_| |_/_/   \\_\\___|_| \\_\\\n");
   CleanupTokens(tokenStream);
   free(tokenStream->tokens);
   free(tokenStream);
