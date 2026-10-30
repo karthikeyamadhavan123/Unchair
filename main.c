@@ -50,13 +50,27 @@ typedef struct
 
 typedef struct
 {
+  int work_minutes;
+  int break_minutes;
+  int min_work_minutes;
+  int max_work_minutes;
+  int adjust_step;
+  int snooze_minutes;
+  int max_snoozes;
+  int water_minutes;
+  int song_seconds;
+  char *song_order; // Alternatively: char song_order[32];
+} Config;
+
+typedef struct
+{
   int statusCode;
   char errorMessage[ERROR_MESSAGE_SIZE];
 } Error;
 
 const char *keys[] = {"work_minutes", "break_minutes", "min_work_minutes",
                       "max_work_minutes", "adjust_step", "snooze_minutes",
-                      "max_snoozes", "water_minutes", "empty",
+                      "max_snoozes", "water_minutes",
                       "song_seconds", "song_order"};
 
 Position *InitializePostion()
@@ -95,6 +109,20 @@ TokenStream *InitializeStream()
   return tokenStream;
 }
 
+Config *InitializeConfig()
+{
+
+  Config *c = (Config *)malloc(sizeof(Config));
+
+  if (c == NULL)
+  {
+    printf("Config is not initialized.\n");
+    return NULL;
+  }
+
+  return c;
+}
+
 void GetTokensFromStream(TokenStream *tokenStream)
 {
   if (tokenStream->size == 0)
@@ -119,6 +147,55 @@ void Push(TokenStream *tokenStream, Token T)
   }
   tokenStream->tokens[++tokenStream->index] = T;
   tokenStream->size++;
+}
+
+void SetConfigKeys(char *key, char *value, Config *config)
+{
+
+  if (strcmp("work_minutes", key) == 0)
+  {
+    config->work_minutes = atoi(value);
+  }
+  if (strcmp("break_minutes", key) == 0)
+  {
+    config->break_minutes = atoi(value);
+  }
+  if (strcmp("min_work_minutes", key) == 0)
+  {
+    config->min_work_minutes = atoi(value);
+  }
+  if (strcmp("max_work_minutes", key) == 0)
+  {
+    config->max_work_minutes = atoi(value);
+  }
+  if (strcmp("adjust_step", key) == 0)
+  {
+    config->adjust_step = atoi(value);
+  }
+  if (strcmp("snooze_minutes", key) == 0)
+  {
+    config->snooze_minutes = atoi(value);
+  }
+  if (strcmp("max_snoozes", key) == 0)
+  {
+    config->max_snoozes = atoi(value);
+  }
+  if (strcmp("water_minutes", key) == 0)
+  {
+    config->water_minutes = atoi(value);
+  }
+  if (strcmp("song_seconds", key) == 0)
+  {
+    config->song_seconds = atoi(value);
+  }
+  if (strcmp("song_order", key) == 0)
+  {
+    if (config->song_order != NULL)
+    {
+      free(config->song_order);
+    }
+    config->song_order = strndup(value, LITERAL_SIZE);
+  }
 }
 
 int isSpace(char ch)
@@ -189,43 +266,152 @@ void CleanupTokens(TokenStream *tokenStream)
   }
 }
 
-// parses tokens
+TType *Peek(TokenStream *tokenStream, int *idx)
+{
+  if (*idx >= tokenStream->size)
+  {
+    return NULL;
+  }
+  return &tokenStream->tokens[*idx].t_type;
+}
 
-int ParseTokens(TokenStream *tokenStream)
+TType GetExpectedValueType(char *key)
+{
+  if (strcmp(key, "song_order") == 0)
+  {
+    return STRING;
+  }
+  return INTEGER;
+}
+
+int ParseAssignment(TokenStream *tokenStream, int *idx, Config *config)
+{
+  int keyIdx = *idx;
+  TType *currVal = Peek(tokenStream, idx);
+  if (!currVal)
+  {
+    printf("Error: Unexpected end of stream while parsing assignment.\n");
+    return 0;
+  }
+  // Check if we hit the closing bracket
+  if (*currVal == RBRACKET)
+  {
+    (*idx)++;
+    return 1; // Successfully parsed the block end
+  }
+  if (currVal && *currVal == KEYWORD)
+  {
+    (*idx)++;
+  }
+  else
+  {
+    printf("Error: Expected a KEYWORD, but received token type %s.\n", tokenStream->tokens[keyIdx].value);
+    return 0;
+  }
+  TType *assignOp = Peek(tokenStream, idx);
+  if (assignOp && *assignOp == EQUALS)
+  {
+    (*idx)++;
+  }
+  else
+  {
+    printf("Error: Expected an EQUALS operator, but received %s.\n", tokenStream->tokens[*idx].value);
+    return 0;
+  }
+  // Expecting a value (INTEGER or STRING)
+  int valIdx = *idx;
+  TType *value = Peek(tokenStream, idx);
+  if (value && (*value == INTEGER || *value == STRING))
+  {
+    (*idx)++;
+  }
+  else
+  {
+    printf("Error: Expected an INTEGER or STRING value, but received %s.\n", tokenStream->tokens[valIdx].value);
+    return 0;
+  }
+  // check the Type of the keyword;
+  TType key_type = GetExpectedValueType(tokenStream->tokens[keyIdx].value);
+  if (value && *value != key_type)
+  {
+    printf("Expected type is not matched for the Keyword %s\n.", tokenStream->tokens[keyIdx].value);
+    return 0;
+  }
+  // here u can assign the configuration logic before checking for a comma.
+  SetConfigKeys(tokenStream->tokens[keyIdx].value, tokenStream->tokens[valIdx].value, config);
+  // Check for a comma or closing bracket next
+  TType *nextVal = Peek(tokenStream, idx);
+  if (!nextVal)
+  {
+    printf("Error: Unexpected end of stream after value assignment.\n");
+    return 0;
+  }
+
+  if (*nextVal == COMMA)
+  {
+    (*idx)++;
+    return ParseAssignment(tokenStream, idx, config);
+  }
+  else if (*nextVal == RBRACKET)
+  {
+    (*idx)++;
+    return 1;
+  }
+  else
+  {
+    printf("Error: Expected a COMMA or ']', but received token type %s.\n", tokenStream->tokens[*idx].value);
+    return 0;
+  }
+}
+
+// takes the assignment list and starts parsing
+int ParseAssignments(TokenStream *tokenStream, int *idx, Config *config)
+{
+  TType *val = Peek(tokenStream, idx);
+  if (!val)
+  {
+    printf("Error: Empty token stream or unexpected end.\n");
+    return 0;
+  }
+
+  if (*val == LBRACKET)
+  {
+    (*idx)++; // Consume '['
+    // Loop or call assignment parsing.
+    // If ParseAssignment handles inner tokens and stops at ']', we call it:
+    if (!ParseAssignment(tokenStream, idx, config))
+    {
+      return 0;
+    }
+  }
+  else
+  {
+    printf("Error: Expected '[' at the start of assignments.\n");
+    return 0;
+  }
+
+  // After parsing the assignment block, ensure we actually consumed everything up to tokenStream->size
+  if (*idx < tokenStream->size)
+  {
+    printf("Error: Extra tokens present after closing ']'.\n");
+    return 0;
+  }
+  return 1;
+}
+
+// parses tokens
+int ParseTokens(TokenStream *tokenStream, Config *config)
 {
   if (tokenStream->size == 0)
   {
     // this case is acceptable that's why we return true
-    printf("No tokens in the stream\n");
+    printf("No tokens in the stream.\n");
     return 1;
   }
-  int index = 0;
-  int countBrackets = 0;
-  if (tokenStream->tokens[0].t_type != LBRACKET)
+  int p_index = 0;
+  int res = ParseAssignments(tokenStream, &p_index, config);
+  if (res == 0)
   {
-    printf("The starting bracket should be '[' but it is %s\n", tokenStream->tokens[0].value);
-    return 0;
-  }
-  countBrackets++;
-  while (index < tokenStream->size)
-  {
-    if (tokenStream->tokens[index].t_type == RBRACKET)
-    {
-      countBrackets--;
-      index++;
-      break;
-    }
-    index++;
-  }
-  if (countBrackets > 0)
-  {
-    printf("You have missed a ']' in your config.\n");
-    return 0;
-  }
-  // means after ] there are still some elements which are left which are not proccessed because RBRACKET was found.
-  if (index < tokenStream->size)
-  {
-    printf("Some characters were found before or after the EOF at index %d stopping parsing.\n", index);
     return 0;
   }
   return 1;
@@ -243,6 +429,13 @@ int main()
   TokenStream *tokenStream = InitializeStream();
 
   if (tokenStream == NULL)
+  {
+    return 1;
+  }
+
+  Config *config = InitializeConfig();
+
+  if (config == NULL)
   {
     return 1;
   }
@@ -502,15 +695,44 @@ int main()
   printf("col position is %d\n", position->col);
   printf("Line lexed is %d\n", position->line);
   fclose(fp);
-  GetTokensFromStream(tokenStream);
+  // GetTokensFromStream(tokenStream);
   // call parser here after closing the file.
-  ParseTokens(tokenStream);
+  int res = ParseTokens(tokenStream, config);
+  if (res == 0)
+  {
+    printf("Parsing Failed.\n");
+    CleanupTokens(tokenStream);
+    free(tokenStream->tokens);
+    free(tokenStream);
+    free(position);
+    if (config->song_order != NULL)
+    {
+      free(config->song_order);
+    }
+    free(config);
+    return 1;
+  }
+  printf("--- Timer Configuration ---\n");
+  printf("work_minutes     = %d\n", config->work_minutes);
+  printf("break_minutes    = %d\n", config->break_minutes);
+  printf("min_work_minutes = %d\n", config->min_work_minutes);
+  printf("max_work_minutes = %d\n", config->max_work_minutes);
+  printf("adjust_step      = %d\n", config->adjust_step);
+  printf("snooze_minutes   = %d\n", config->snooze_minutes);
+  printf("max_snoozes      = %d\n", config->max_snoozes);
+  printf("water_minutes    = %d\n", config->water_minutes);
+  printf("song_seconds     = %d\n", config->song_seconds);
+  printf("song_order       = %s\n", config->song_order);
   // Cleanup resources
   // fixed the strndup issue here
   CleanupTokens(tokenStream);
   free(tokenStream->tokens);
   free(tokenStream);
   free(position);
-
+  if (config->song_order != NULL)
+  {
+    free(config->song_order);
+  }
+  free(config);
   return 0;
 }
