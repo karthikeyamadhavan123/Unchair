@@ -1,1 +1,5 @@
-main
+# build output
+*.o
+*.png
+*.un
+src/unchair
