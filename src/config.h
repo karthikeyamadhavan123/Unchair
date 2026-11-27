@@ -5,6 +5,7 @@
 
 Config *InitializeConfig(void);
 void SetConfigKeys(char *key, char *value, Config *config);
+void PrintConfig(Config *config);
 void FreeConfig(Config *config);
 
 #endif /* CONFIG_H */

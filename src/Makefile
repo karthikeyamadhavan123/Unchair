@@ -6,7 +6,7 @@ TARGET  = unchair
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $(OBJS)
+	$(CC) $(CFLAGS) -o $@ $(OBJS) -lm
 
 main.o:   main.c types.h lexer.h parser.h config.h
 lexer.o:  lexer.c lexer.h types.h

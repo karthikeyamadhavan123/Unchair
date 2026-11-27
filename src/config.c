@@ -67,6 +67,25 @@ void SetConfigKeys(char *key, char *value, Config *config)
   }
 }
 
+void PrintConfig(Config *config)
+{
+  if (config == NULL)
+  {
+    printf("No config to print.\n");
+    return;
+  }
+  printf("work_minutes      = %d\n", config->work_minutes);
+  printf("break_minutes     = %d\n", config->break_minutes);
+  printf("min_work_minutes  = %d\n", config->min_work_minutes);
+  printf("max_work_minutes  = %d\n", config->max_work_minutes);
+  printf("adjust_step       = %d\n", config->adjust_step);
+  printf("snooze_minutes    = %d\n", config->snooze_minutes);
+  printf("max_snoozes       = %d\n", config->max_snoozes);
+  printf("water_minutes     = %d\n", config->water_minutes);
+  printf("song_seconds      = %d\n", config->song_seconds);
+  printf("song_order        = %s\n", config->song_order ? config->song_order : "(not set)");
+}
+
 void FreeConfig(Config *config)
 {
   if (config == NULL)
