@@ -1,5 +1,7 @@
 # build output
 *.o
 *.png
+*.jpg
+*.jpeg
 *.un
 src/unchair

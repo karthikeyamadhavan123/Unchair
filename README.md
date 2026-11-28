@@ -28,7 +28,7 @@ Developers sit for hours without noticing. Most break apps use a fixed timer tha
 ## How the adjustment works
 
 | What happened | Next work block |
-|---|---|
+| --- | --- |
 | Skipped the break | 5 min shorter |
 | Took the break, felt 1 or 2 | 5 min shorter |
 | Took the break, felt 3 or no answer | Same |
@@ -51,7 +51,7 @@ Coming with v0.1: A single downloadable Linux binary on the Releases page, plus 
 ## Usage
 
 | Command | What it does |
-|---|---|
+| --- | --- |
 | `unchair` | Start the reminder screen |
 | `unchair today` | Show a summary of today |
 
@@ -106,4 +106,3 @@ This is an early project, and your opinion shapes what comes next. Please open a
 ## License
 
 MIT, see [LICENSE](LICENSE).
-
